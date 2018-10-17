@@ -4,6 +4,15 @@ Like a an efficient pool boy, keep the pools of the [Concourse pool-resource] cl
 
 Can be used from the command-line or from a Concourse pipeline.
 
+## Status
+
+This software is currently beta, although we are already using it in production.
+
+Following semver numbering, expect API breakages until it reaches major version 1.
+We suggest to pin to a specific commit and perform tests before upgrading.
+
+See also the [CHANGELOG](CHANGELOG.md).
+
 ## Usage from the command-line
 
 ```text
