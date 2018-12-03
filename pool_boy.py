@@ -9,7 +9,6 @@ import logging
 import os
 import os.path
 import shutil
-import textwrap
 from datetime import datetime, timedelta, timezone
 
 import click
