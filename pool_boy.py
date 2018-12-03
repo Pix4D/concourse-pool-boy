@@ -46,10 +46,10 @@ def refresh_local_repo(conf):
     return git
 
 
-def clean_pool(git, pool, dry_run):
+def clean_pool(git, pool, stale_timeout, dry_run):
     changes = 0
     log.info('\n====== Looking for claimed locks in pool %s (stale timeout %s) ======',
-             pool, conf['stale-timeout'])
+             pool, stale_timeout)
     assert os.path.isdir(pool), "Pool dir %s doesn't exist" % os.path.abspath(pool)
     claimed_dir = os.path.join(pool, 'claimed')
     unclaimed_dir = os.path.join(pool, 'unclaimed')
@@ -68,7 +68,7 @@ def clean_pool(git, pool, dry_run):
         log.debug('time now        %s', now_ts)
         log.debug('claim timestamp %s', claim_ts)
         lifetime = now_ts - claim_ts
-        if lifetime > conf['stale-timeout']:
+        if lifetime > stale_timeout:
             log.info('Lock is stale (lifetime: %s)', lifetime)
             changes += 1
             if not dry_run:
@@ -86,10 +86,12 @@ def clean_pool(git, pool, dry_run):
 @click.option('--repo', required=True,
               help='URL of the Concourse lock pool repo')
 @click.option('--pools', required=True,
-              help='Comma-separated list of pools to inspect inside the repo')
-@click.option('--stale-timeout', default=60, show_default=True,
-              help='Staleness timeout in minutes')
-def cli(verbose, repo, pools, stale_timeout):
+              help='Comma-separated list of pool name and timeout pairs. '
+                   'The pair items must be separated by ":", '
+                   'for example: worker_pool:60,tester_pool:30. '
+                   'The timeout parameter defines the number of minutes after which '
+                   'the lock is considered stale.')
+def cli(verbose, repo, pools):
     if verbose:
         log.setLevel(logging.DEBUG)
     else:
@@ -98,13 +100,19 @@ def cli(verbose, repo, pools, stale_timeout):
     assert '/' not in local_repo
     conf['remote-repo'] = repo
     conf['local-repo'] = local_repo
-    conf['pools'] = pools.split(',')
-    conf['stale-timeout'] = timedelta(minutes=stale_timeout)
+    conf['pools'] = list(_parse_pools(pools))
     log.debug('Configuration: %s', conf)
 
 
+def _parse_pools(pools):
+    for part in pools.split(','):
+        name_timeout = part.split(':', 1)
+        assert len(name_timeout) == 2
+        yield (name_timeout[0], timedelta(minutes=int(name_timeout[1])))
+
+
 def clean_pools(git, pools, dry_run):
-    return sum(clean_pool(git, p, dry_run) for p in pools)
+    return sum(clean_pool(git, name, timeout, dry_run) for (name, timeout) in pools)
 
 
 @cli.command()
