@@ -22,4 +22,4 @@ chmod 400 /root/.ssh/id_rsa
 
 echo
 echo "Running the pool boy"
-pool_boy.py --repo "${POOL_REPO}" --pools "${POOLS}" --stale-timeout "${STALE_TIMEOUT}" clean
+pool_boy.py --repo "${POOL_REPO}" --pools "${POOLS}" clean

@@ -21,9 +21,11 @@ Usage: pool_boy.py [OPTIONS] COMMAND [ARGS]...
 Options:
   --verbose                Turn on verbose logging
   --repo TEXT              URL of the Concourse lock pool repo  [required]
-  --pools TEXT             Comma-separated list of pools to inspect inside the
-                           repo  [required]
-  --stale-timeout INTEGER  Staleness timeout in minutes  [default: 60]
+  --pools TEXT             Comma-separated list of pool name and timeout pairs. The pair
+                           items must be separated by ":", for example:
+                           worker_pool:60,tester_pool:30. The timeout parameter defines
+                           the number of minutes after which the lock is considered
+                           stale.  [required]
   --help                   Show this message and exit.
 
 Commands:
@@ -66,8 +68,7 @@ jobs:
         params:
           POOL_REPO: MY_CONCOURSE_LOCKS_REPO
           POOL_REPO_SSH_PRIVATE_KEY: ((MY_GIT_SSH_PRIVATE_KEY))
-          POOLS: MYLIST,OF,POOLS,INSIDE,THE,LOCK,REPO
-          STALE_TIMEOUT: 60
+          POOLS: POOL_1:STALE_TIMEOUT_1,POOL_2:STALE_TIMEOUT_2
 ```
 
 ## Testing
