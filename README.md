@@ -71,6 +71,16 @@ jobs:
           POOLS: POOL_1:STALE_TIMEOUT_1,POOL_2:STALE_TIMEOUT_2
 ```
 
+## Caveats
+
+Note that if the following events happen in this timed sequence, a pipeline failure will happen:
+
+1. A job acquires lock `lock-1`.
+2. Time passes by, the Pool Boy detects `lock-1` as stale and brings it back to the available pool.
+3. The job of step 1 finishes running and attempts to release `lock-1`. The pool resource will fail (because the lock disappeared on git, moved by the Pool Boy) and the associated pipeline will fail!
+
+So think twice before deciding the timeout values!
+
 ## Testing
 
 The script works out-of-the box on macOS and Linux. You can optionally run it from a Docker container.
