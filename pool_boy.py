@@ -8,12 +8,21 @@ import glob
 import logging
 import os
 import os.path
+import re
 import shutil
 from datetime import datetime, timedelta, timezone
 
 import click
 import dateutil.parser
+import requests
 from vendor.brigit.brigit import Git
+
+CONCOURSE_BASE_URL = os.environ['CONCOURSE_BASE_URL']
+CLAIM_COMMIT_RE = re.compile(
+    r'[0-9a-f]+\s+'
+    r'(?P<team>.*)/(?P<pipeline>.*)/(?P<job>.*)\s+build\s+(?P<build>.*)\s+'
+    r'claiming:\s+.*'
+)
 
 logging.basicConfig(format='%(message)s')
 log = logging.getLogger('pool-boy')
@@ -45,6 +54,43 @@ def refresh_local_repo(conf):
     return git
 
 
+class BearerAuth(requests.auth.AuthBase):
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, request):
+        request.headers['Authorization'] = 'Bearer ' + self.token
+        return request
+
+
+def get_concourse_auth():
+    url = CONCOURSE_BASE_URL + '/sky/token'
+    username = os.environ['CONCOURSE_USERNAME']
+    password = os.environ['CONCOURSE_PASSWORD']
+    reply = requests.post(
+        url,
+        auth=('fly', 'Zmx5'),  # See: https://github.com/concourse/concourse/blob/3792bda9c3705ce3a10f03d18b2768b9954fc51d/skymarshal/skyserver/skyserver.go#L298
+        data=dict(username=username,
+                  password=password,
+                  grant_type='password',
+                  scope='openid profile email federated:id groups')
+    )
+    if reply.ok:
+        return BearerAuth(reply.json()['access_token'])
+    log.error(f'Failed to authenticate as {username!r} at {url}')
+    return None
+
+
+def is_build_alive(auth, team, pipeline, job, build):
+    reply = requests.get(
+        CONCOURSE_BASE_URL + f'/api/v1/teams/{team}/pipelines/{pipeline}/jobs/{job}/builds/{build}',
+        auth=auth
+    )
+    if not reply.ok:
+        return False
+    return reply.json()['status'] == 'started'
+
+
 def clean_pool(git, pool, stale_timeout, dry_run):
     changes = 0
     log.info('\n====== Looking for claimed locks in pool %s (stale timeout %s) ======',
@@ -57,10 +103,12 @@ def clean_pool(git, pool, stale_timeout, dry_run):
         log.info('No claimed locks')
         return changes
     now_ts = datetime.now(timezone.utc)
+    auth = get_concourse_auth()
     for taken_lock in locks:
         log.info('---')
         lock_acquire_msg = git.log('--pretty=oneline', '--max-count=1', taken_lock).rstrip()
         log.info('lock: %s (%s)', taken_lock, lock_acquire_msg)
+        match = CLAIM_COMMIT_RE.match(lock_acquire_msg)
         # Format is ISO-8601: 2018-10-04T12:39:47+00:00
         claim_str = git.log('--format=%cI', '--max-count=1', taken_lock)
         claim_ts = dateutil.parser.parse(claim_str)
@@ -68,6 +116,9 @@ def clean_pool(git, pool, stale_timeout, dry_run):
         log.debug('claim timestamp %s', claim_ts)
         lifetime = now_ts - claim_ts
         if lifetime > stale_timeout:
+            if match and is_build_alive(auth=auth, **match.groupdict()):
+                log.info(f'Keeping lock held by long running build (lifetime: {lifetime})')
+                continue
             log.info('Lock is stale (lifetime: %s)', lifetime)
             changes += 1
             if not dry_run:
