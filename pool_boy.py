@@ -17,7 +17,7 @@ import dateutil.parser
 import requests
 from vendor.brigit.brigit import Git
 
-CONCOURSE_BASE_URL = os.environ['CONCOURSE_BASE_URL']
+CONCOURSE_BASE_URL = os.environ.get('CONCOURSE_BASE_URL')
 CLAIM_COMMIT_RE = re.compile(
     r'[0-9a-f]+\s+'
     r'(?P<team>.*)/(?P<pipeline>.*)/(?P<job>.*)\s+build\s+(?P<build>.*)\s+'
@@ -64,6 +64,12 @@ class BearerAuth(requests.auth.AuthBase):
 
 
 def get_concourse_auth():
+    """Exchange the username and password for a token
+
+    See: https://www.oauth.com/oauth2-servers/access-tokens/password-grant/
+    """
+    if CONCOURSE_BASE_URL is None:
+        return None
     url = CONCOURSE_BASE_URL + '/sky/token'
     username = os.environ['CONCOURSE_USERNAME']
     password = os.environ['CONCOURSE_PASSWORD']
@@ -82,6 +88,9 @@ def get_concourse_auth():
 
 
 def is_build_alive(auth, team, pipeline, job, build):
+    if not auth:
+        return None
+
     reply = requests.get(
         CONCOURSE_BASE_URL + f'/api/v1/teams/{team}/pipelines/{pipeline}/jobs/{job}/builds/{build}',
         auth=auth
