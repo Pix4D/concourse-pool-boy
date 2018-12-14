@@ -87,7 +87,15 @@ def get_concourse_auth():
     return None
 
 
-def is_build_alive(auth, team, pipeline, job, build):
+def get_build_status(auth, team, pipeline, job, build):
+    """Check with Concourse if a build is still alive
+
+    The returned value is either:
+    - None: If a meaningful reply from Concourse could not be obtained
+            either due to networking issue or simply because the pipeline
+            got destroyed.
+    - The build status as reported by Concourse. Live builds are 'started'.
+    """
     if not auth:
         return None
 
@@ -96,8 +104,8 @@ def is_build_alive(auth, team, pipeline, job, build):
         auth=auth
     )
     if not reply.ok:
-        return False
-    return reply.json()['status'] == 'started'
+        return None
+    return reply.json()['status']
 
 
 def clean_pool(git, pool, stale_timeout, dry_run):
@@ -107,6 +115,13 @@ def clean_pool(git, pool, stale_timeout, dry_run):
     assert os.path.isdir(pool), "Pool dir %s doesn't exist" % os.path.abspath(pool)
     claimed_dir = os.path.join(pool, 'claimed')
     unclaimed_dir = os.path.join(pool, 'unclaimed')
+
+    def clear_lock(taken_lock):
+        if not dry_run:
+            free_lock = os.path.join(unclaimed_dir, os.path.basename(taken_lock))
+            log.info(f"Moving {taken_lock} to {free_lock}")
+            git.mv(taken_lock, free_lock)
+
     locks = glob.glob(os.path.join(claimed_dir, '*'))
     if not locks:
         log.info('No claimed locks')
@@ -118,24 +133,28 @@ def clean_pool(git, pool, stale_timeout, dry_run):
         lock_acquire_msg = git.log('--pretty=oneline', '--max-count=1', taken_lock).rstrip()
         log.info('lock: %s (%s)', taken_lock, lock_acquire_msg)
         match = CLAIM_COMMIT_RE.match(lock_acquire_msg)
+        build_status = get_build_status(auth=auth, **match.groupdict()) if match else None
         # Format is ISO-8601: 2018-10-04T12:39:47+00:00
         claim_str = git.log('--format=%cI', '--max-count=1', taken_lock)
         claim_ts = dateutil.parser.parse(claim_str)
         log.debug('time now        %s', now_ts)
         log.debug('claim timestamp %s', claim_ts)
         lifetime = now_ts - claim_ts
-        if lifetime > stale_timeout:
-            if match and is_build_alive(auth=auth, **match.groupdict()):
-                log.info(f'Keeping lock held by long running build (lifetime: {lifetime})')
-                continue
-            log.info('Lock is stale (lifetime: %s)', lifetime)
+        if build_status == 'started':
+            log.info(f"Owning build is still alive after {lifetime}. Leaving lock as is.")
+            continue
+        elif build_status is not None:
+            log.info(
+                f"Owning build is terminated with status {build_status!r} (lifetime: {lifetime}).")
             changes += 1
-            if not dry_run:
-                free_lock = os.path.join(unclaimed_dir, os.path.basename(taken_lock))
-                log.info('Moving %s to %s' % (taken_lock, free_lock))
-                git.mv(taken_lock, free_lock)
+            clear_lock(taken_lock)
+        elif lifetime > stale_timeout:
+            log.info(f"Couldn't check the build status and lock is stale (lifetime: {lifetime}).")
+            changes += 1
+            clear_lock(taken_lock)
         else:
-            log.info('Lock is not stale (lifetime: %s)', lifetime)
+            log.info(f"Couldn't check the build status "
+                     f"but lock is not stale yet (lifetime: {lifetime}).")
     return changes
 
 
