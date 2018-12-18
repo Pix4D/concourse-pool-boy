@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2018-12-13
+
+### Added
+
+- The pool boy can check if a floating body is dead or alive before cleaning it from the pool.
+
+## [0.2.0] - 2018-12-03
+
+### Changed
+
+- Made the timeout configurable per pool.
+
 ## [0.1.0] - 2018-10-17
 
 ### Added

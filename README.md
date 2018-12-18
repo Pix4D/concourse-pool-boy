@@ -2,6 +2,10 @@
 
 Like a an efficient pool boy, keep the pools of the [Concourse pool-resource] clean from debris.
 
+For an even smarter pool boy, you can tell him to check if a floating body is still alive before
+cleaning it by using our improved [Pix4D pool-resource] and setting the parameters
+`CONCOURSE_BASE_URL`, `CONCOURSE_USERNAME` and `CONCOURSE_PASSWORD` (see below).
+
 Can be used from the command-line or from a Concourse pipeline.
 
 ## Status
@@ -66,14 +70,25 @@ jobs:
           run:
             path: /usr/local/bin/pool_boy.sh
         params:
+          CONCOURSE_BASE_URL: http://my-concourse.local
+          CONCOURSE_USERNAME: ((THE_CONCOURSE_USER))
+          CONCOURSE_PASSWORD: ((THE_USER_PASSWORD))
           POOL_REPO: MY_CONCOURSE_LOCKS_REPO
           POOL_REPO_SSH_PRIVATE_KEY: ((MY_GIT_SSH_PRIVATE_KEY))
           POOLS: POOL_1:STALE_TIMEOUT_1,POOL_2:STALE_TIMEOUT_2
 ```
 
+`CONCOURSE_BASE_URL` is optional. It should be identical to the `--concourse-url` value passed to
+`fly`. If present the `CONCOURSE_USERNAME` and `CONCOURSE_PASSWORD` are mandatory and they must be
+valid Concourse credential with the appropriate rights to see the status of the builds that uses
+the configured `POOL_REPO`.
+
 ## Caveats
 
-Note that if the following events happen in this timed sequence, a pipeline failure will happen:
+Note that if the `CONCOURSE_BASE_URL` is not specified, the pool boy won't be able to validate if
+the build that last claimed a lock is still alive or not and will then rely solely on the staleness
+timeout configured. This will typically result in a pipeline failure when the following sequence of
+events happen:
 
 1. A job acquires lock `lock-1`.
 2. Time passes by, the Pool Boy detects `lock-1` as stale and brings it back to the available pool.
@@ -147,3 +162,4 @@ Note: there is no built-in help for git subtree, on the other hand the very good
 
 
 [Concourse pool-resource]: https://github.com/concourse/pool-resource
+[Pix4D pool-resource]: https://github.com/Pix4D/pool-resource
