@@ -6,7 +6,7 @@ Can be used from the command-line or from a Concourse pipeline.
 
 We strongly suggest to use our [forked version of the Concourse pool-resource], since this enables the Pool Boy to query the ATC and determine if a lock is stale based on correct liveliness information about the job which acquired it. To enable the Pool Boy to query the ATC, see section "Enabling ATC querying".
 
-On the other hand, if paired with the original Concourse pool resource, the only criteria it can use for staleness is a timeout, so it is possible for the Pool Boy to steal a lock out of a perfectly fine job and cause mayhem when the job that owned the lock attempts to unclaim it.
+On the other hand, if paired with the original Concourse pool resource, the only criterion it can use for staleness is a timeout, so it is possible for the Pool Boy to steal a lock out of a perfectly fine job and cause mayhem when the job that owned the lock attempts to unclaim it.
 
 ## Status
 
