@@ -1,6 +1,6 @@
 # Concourse pool boy
 
-Observes the pools used by the *Concourse pool resource* and puts back to `unclaimed` any **stale** lock.
+Observes the pools used by the *Concourse pool resource* and resets to unclaimed any lock that it determines **stale**.
 
 Can be used from the command-line or from a Concourse pipeline.
 
