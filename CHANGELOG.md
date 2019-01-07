@@ -15,7 +15,7 @@ No changes; decided to promote to 1.0.0 thanks to its stability. More details in
 
 ### Added
 
-- The pool boy can check, by querying the ATC, if a floating body is dead or alive before cleaning it from the pool.
+- The pool boy can check, by querying the Concourse ATC, if a floating body is dead or alive before cleaning it from the pool.
 
 ## [0.2.0] - 2018-12-03
 
