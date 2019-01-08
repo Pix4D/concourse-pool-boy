@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2019-01-07
+
+No changes; decided to promote to 1.0.0 thanks to its stability. More details in the documentation.
+
 ## [0.3.0] - 2018-12-13
 
 ### Added
 
-- The pool boy can check if a floating body is dead or alive before cleaning it from the pool.
+- The pool boy can check, by querying the Concourse ATC, if a floating body is dead or alive before cleaning it from the pool.
 
 ## [0.2.0] - 2018-12-03
 
