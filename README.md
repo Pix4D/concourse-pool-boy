@@ -8,6 +8,29 @@ We strongly suggest to use our [forked version of the Concourse pool-resource], 
 
 On the other hand, if paired with the original Concourse pool resource, the only criterion it can use for staleness is a timeout, so it is possible for the Pool Boy to steal a lock out of a perfectly fine job and cause mayhem when the job that owned the lock attempts to unclaim it.
 
+## Why
+
+There are situations when the release of a lock will fail, also if protected by an `ensure` step:
+
+```YAML
+- name: acquire-1
+  plan:
+    - put: acquire-pool
+      params: {acquire: true}
+    - task: BLAHBLAHBLAH
+  ensure:
+    put: acquire-pool
+    params: {release: acquire-pool}
+```
+
+If the worker on which the release of the lock fails, then the build will fail and the lock will become stale: it will stay in acquired state forever, unusable, requiring manual intervention (perform a commit on the git repository that backs the locks).
+
+Real-world situations when the worker will fail:
+
+* Lock secrets (git SSH key) stored in a secret store, secret store lookup failing due to throttling
+* Worker scheduled to run the pool resource crashing/disappearing for any reason
+
+
 ## Status
 
 We have been using this software in production, periodically triggered by a Concourse pipeline, for a few months and it is stable to use.
