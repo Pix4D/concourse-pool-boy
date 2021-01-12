@@ -85,7 +85,7 @@ jobs:
         config:
           platform: linux
           image_resource:
-            type: docker-image
+            type: registry-image
             source:
               repository: MYDOCKER/pool-boy
               tag: latest
