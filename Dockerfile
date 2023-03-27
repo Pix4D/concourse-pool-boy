@@ -1,7 +1,10 @@
 FROM alpine
 
 # This installs also pip3
-RUN apk --no-cache add python3 openssh-client git
+RUN apk update \
+    && apk --no-cache add \
+    python3 openssh-client git \
+    cmd:pip3
 
 # Add the SSH public keys of git hosting providers
 RUN mkdir /root/.ssh
